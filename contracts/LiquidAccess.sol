@@ -13,6 +13,8 @@ import "./interfaces/IERC4906.sol";
 contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     using Strings for uint256;
 
+    uint256 public constant MAX_LOCKUP_PERIOD = 30 days;
+
     string private _merchantName; // Merchant name
     uint256 private _merchantId; // Merchant id
     uint256 private _tranferFromCounter; // TransferFrom counter
@@ -137,6 +139,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     function setLockupPeriod(uint256 period) external onlyOwner {
+        require(period <= MAX_LOCKUP_PERIOD, "LA: period is too long");
         _lockupPeriod = period;
     }
 
