@@ -139,7 +139,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
         // Transfer or burn
         if (from != address(0)) {
-            require(!addressBlacklist[from], "LA: Address is blacklisted");
+            require(!addressBlacklist[from], "LA: NFT Holder is blacklisted");
         }
 
         // Mint or transfer
