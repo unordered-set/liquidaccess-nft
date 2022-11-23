@@ -24,6 +24,17 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     mapping(address => bool) private addressBlacklist; // Black list (user)
     mapping(uint256 => bool) private nftBlacklist; // Black list (nft)
 
+    mapping(uint256 => uint256) private _lockups; // tokenId => locked up until timestamp
+    uint256 private _lockupPeriod; // duration of lockup period in seconds
+
+    string private _nftName = "Genesis NFT pass";
+    string private _nftDescription = "This pass gives you premium access to Aloha Browser. You may extend the expiration date by simply using the browser. Owners of the Genesis Pass will receive drops from future collaborations. Visit [alohaprofile.com](https://alohaprofile.com/) to activate your pass. Powered by [Liquid Access](https://liquidaccess.com/).";
+    string private _nftImage = "https://storage.liquid-access.rocks/aloha-genesis-nft.png";
+
+    string private _contractName = "Aloha Browser";
+    string private _contractDescription = "Aloha Browser is a fast, free, full-featured web browser that provides maximum privacy and security.";
+    string private _contractImage = "https://storage.liquid-access.rocks/aloha.png";
+
     event TransferFrom(
         address indexed from,
         address indexed to,
@@ -150,8 +161,6 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // Lock-up period ===================
-    mapping(uint256 => uint256) private _lockups; // tokenId => locked up until timestamp
-    uint256 private _lockupPeriod; // duration of lockup period in seconds
 
     function lockupLeftOf(uint256 tokenId) public view returns (uint256) {
         uint256 lockup = _lockups[tokenId];
@@ -282,10 +291,6 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // NFT metadata ===================
-    string private _nftName = "NFT Name";
-    string private _nftDescription = "NFT Description";
-    string private _nftImage = "https://";
-
     function updateAllTokensMetadata() private {
         uint256 total = totalSupply();
 
@@ -344,10 +349,6 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // Contract metadata ===================
-    string private _contractName = "Contract Name";
-    string private _contractDescription = "Contract Description";
-    string private _contractImage = "https://";
-
     function setContractName(string calldata name) external onlyOwner {
         emit ContractName(_contractName, name);
         _contractName = name;
