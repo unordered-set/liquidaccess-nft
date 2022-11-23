@@ -199,7 +199,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // NFT blacklist ===================
-    function addNFTToBlacklist(uint256 _nft) external onlyOwner {
+    function addNFTToBlacklist(uint256 _nft) external onlyOwner tokenExists(_nft) {
         nftBlacklist[_nft] = true;
         emit NftBlacklist(_nft, true);
     }
