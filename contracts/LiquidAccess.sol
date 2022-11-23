@@ -162,7 +162,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
     // Lock-up period ===================
 
-    function lockupLeftOf(uint256 tokenId) public view returns (uint256) {
+    function lockupLeftOf(uint256 tokenId) external view returns (uint256) {
         uint256 lockup = _lockups[tokenId];
         if (lockup == 0) {
             return 0;
@@ -173,7 +173,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         return lockup - block.timestamp;
     }
 
-    function lockupPeriod() public view returns (uint256) {
+    function lockupPeriod() external view returns (uint256) {
         return _lockupPeriod;
     }
 
@@ -212,7 +212,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         emit NftBlacklist(_nft, false);
     }
 
-    function isNFTBlacklisted(uint256 _nft) public view returns (bool) {
+    function isNFTBlacklisted(uint256 _nft) external view returns (bool) {
         return nftBlacklist[_nft];
     }
 
@@ -227,7 +227,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         emit AddressBlacklist(_address, false);
     }
 
-    function isAddressBlacklisted(address _address) public view returns (bool) {
+    function isAddressBlacklisted(address _address) external view returns (bool) {
         return addressBlacklist[_address];
     }
 
@@ -269,11 +269,11 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         emit MetadataUpdate(tokenId);
     }
 
-    function merchantName() public view returns (string memory) {
+    function merchantName() external view returns (string memory) {
         return _merchantName;
     }
 
-    function merchantId() public view returns (uint256) {
+    function merchantId() external view returns (uint256) {
         return _merchantId;
     }
 
@@ -367,7 +367,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         _contractImage = image;
     }
 
-    function contractURI() public view returns (string memory) {
+    function contractURI() external view returns (string memory) {
         (address receiver, uint256 fee) = royaltyInfo(0, _feeDenominator());
         string memory receiverString = Strings.toHexString(receiver);
         return
