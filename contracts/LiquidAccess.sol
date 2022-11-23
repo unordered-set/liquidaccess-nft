@@ -21,8 +21,8 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
     mapping(uint256 => string) private dateExpirations; // Mapping from token Id to date_expiration
     mapping(uint256 => string) private typeSubscriptions; // Mapping from token Id to type_subscription
-    mapping(address => address) private addressBlacklist; // Black list (user)
-    mapping(uint256 => uint256) private nftBlacklist; // Black list (nft)
+    mapping(address => bool) private addressBlacklist; // Black list (user)
+    mapping(uint256 => bool) private nftBlacklist; // Black list (nft)
 
     event TransferFrom(
         address indexed from,
@@ -98,17 +98,17 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
         // Transfer or burn
         if (from != address(0)) {
-            require(addressBlacklist[from] == address(0), "LA: NFT Holder is blacklisted");
+            require(!addressBlacklist[from], "LA: Address is blacklisted");
         }
 
         // Mint or transfer
         if (to != address(0)) {
-            require(addressBlacklist[to] == address(0), "LA: Recipient is blacklisted");
+            require(!addressBlacklist[to], "LA: Recipient is blacklisted");
         }
 
         // A transfer
         if (from != address(0) && to != address(0)) {
-            require(nftBlacklist[tokenId] == 0, "LA: NFT is blacklisted");
+            require(!nftBlacklist[tokenId], "LA: NFT is blacklisted");
             
             _requireUnlock(tokenId);
 
@@ -163,7 +163,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
     // NFT blacklist ===================
     function addNFTToBlacklist(uint256 _nft) external onlyOwner {
-        nftBlacklist[_nft] = _nft;
+        nftBlacklist[_nft] = true;
     }
 
     function removeNFTFromBlacklist(uint256 _nft) external onlyOwner {
@@ -171,12 +171,12 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     function isNFTBlacklisted(uint256 _nft) public view returns (bool) {
-        return nftBlacklist[_nft] != 0;
+        return nftBlacklist[_nft];
     }
 
     // Users blacklist ===================
     function addAddressToBlacklist(address _address) external onlyOwner {
-        addressBlacklist[_address] = _address;
+        addressBlacklist[_address] = true;
     }
 
     function removeAddressFromBlacklist(address _address) external onlyOwner {
@@ -184,7 +184,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     function isAddressBlacklisted(address _address) public view returns (bool) {
-        return addressBlacklist[_address] != address(0);
+        return addressBlacklist[_address];
     }
 
     function expirationDateOf(uint256 tokenId)
