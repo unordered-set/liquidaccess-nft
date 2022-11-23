@@ -90,7 +90,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         _merchantName = merchantName_;
         _merchantId = merchantId_;
 
-        _setDefaultRoyalty(msg.sender, 500);
+        _setDefaultRoyalty(msg.sender, 250);
     }
 
     function supportsInterface(bytes4 interfaceId)
