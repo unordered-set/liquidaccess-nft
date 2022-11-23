@@ -164,10 +164,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
     function lockupLeftOf(uint256 tokenId) external view returns (uint256) {
         uint256 lockup = _lockups[tokenId];
-        if (lockup == 0) {
-            return 0;
-        }
-        if (block.timestamp >= lockup) {
+        if (lockup == 0 || block.timestamp >= lockup) {
             return 0;
         }
         return lockup - block.timestamp;
