@@ -31,6 +31,36 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         uint256 indexed count
     );
 
+    event LockupPeriod(
+        uint256 indexed previous,
+        uint256 indexed current
+    );
+
+    event NftBlacklist(
+        uint256 indexed tokenId,
+        bool indexed status
+    );
+
+    event AddressBlacklist(
+        address indexed user,
+        bool indexed status
+    );
+
+    event ContractName(
+        string indexed previous,
+        string indexed current
+    );
+
+    event ContractDescription(
+        string indexed previous,
+        string indexed current
+    );
+
+    event ContractImage(
+        string indexed previous,
+        string indexed current
+    );
+
     error TokenIdNotFound(uint256 tokenId);
 
     modifier tokenExists(uint256 tokenId) {
@@ -140,6 +170,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
     function setLockupPeriod(uint256 period) external onlyOwner {
         require(period <= MAX_LOCKUP_PERIOD, "LA: period is too long");
+        emit LockupPeriod(_lockupPeriod, period);
         _lockupPeriod = period;
     }
 
@@ -164,10 +195,12 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     // NFT blacklist ===================
     function addNFTToBlacklist(uint256 _nft) external onlyOwner {
         nftBlacklist[_nft] = true;
+        emit NftBlacklist(_nft, true);
     }
 
     function removeNFTFromBlacklist(uint256 _nft) external onlyOwner {
         delete nftBlacklist[_nft];
+        emit NftBlacklist(_nft, false);
     }
 
     function isNFTBlacklisted(uint256 _nft) public view returns (bool) {
@@ -177,10 +210,12 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     // Users blacklist ===================
     function addAddressToBlacklist(address _address) external onlyOwner {
         addressBlacklist[_address] = true;
+        emit AddressBlacklist(_address, true);
     }
 
     function removeAddressFromBlacklist(address _address) external onlyOwner {
         delete addressBlacklist[_address];
+        emit AddressBlacklist(_address, false);
     }
 
     function isAddressBlacklisted(address _address) public view returns (bool) {
@@ -314,6 +349,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     string private _contractImage = "https://";
 
     function setContractName(string calldata name) external onlyOwner {
+        emit ContractName(_contractName, name);
         _contractName = name;
     }
 
@@ -321,10 +357,12 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         external
         onlyOwner
     {
+        emit ContractDescription(_contractDescription, description);
         _contractDescription = description;
     }
 
     function setContractImage(string calldata image) external onlyOwner {
+        emit ContractImage(_contractImage, image);
         _contractImage = image;
     }
 
