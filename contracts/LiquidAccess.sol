@@ -13,20 +13,63 @@ import "./interfaces/IERC4906.sol";
 contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     using Strings for uint256;
 
+    uint256 public constant MAX_LOCKUP_PERIOD = 30 days;
+
     string private _merchantName; // Merchant name
     uint256 private _merchantId; // Merchant id
     uint256 private _tranferFromCounter; // TransferFrom counter
 
     mapping(uint256 => string) private dateExpirations; // Mapping from token Id to date_expiration
     mapping(uint256 => string) private typeSubscriptions; // Mapping from token Id to type_subscription
-    mapping(address => address) private addressBlacklist; // Black list (user)
-    mapping(uint256 => uint256) private nftBlacklist; // Black list (nft)
+    mapping(address => bool) private addressBlacklist; // Black list (user)
+    mapping(uint256 => bool) private nftBlacklist; // Black list (nft)
+
+    mapping(uint256 => uint256) private _lockups; // tokenId => locked up until timestamp
+    uint256 private _lockupPeriod; // duration of lockup period in seconds
+
+    string private _nftName = "Genesis NFT pass";
+    string private _nftDescription = "This pass gives you premium access to Aloha Browser. You may extend the expiration date by simply using the browser. Owners of the Genesis Pass will receive drops from future collaborations. Visit [alohaprofile.com](https://alohaprofile.com/) to activate your pass. Powered by [Liquid Access](https://liquidaccess.com/).";
+    string private _nftImage = "https://storage.liquid-access.rocks/aloha-genesis-nft.png";
+
+    string private _contractName = "Aloha Browser";
+    string private _contractDescription = "Aloha Browser is a fast, free, full-featured web browser that provides maximum privacy and security.";
+    string private _contractImage = "https://storage.liquid-access.rocks/aloha.png";
 
     event TransferFrom(
         address indexed from,
         address indexed to,
         uint256 tokenId,
         uint256 indexed count
+    );
+
+    event LockupPeriod(
+        uint256 indexed previous,
+        uint256 indexed current
+    );
+
+    event NftBlacklist(
+        uint256 indexed tokenId,
+        bool indexed status
+    );
+
+    event AddressBlacklist(
+        address indexed user,
+        bool indexed status
+    );
+
+    event ContractName(
+        string indexed previous,
+        string indexed current
+    );
+
+    event ContractDescription(
+        string indexed previous,
+        string indexed current
+    );
+
+    event ContractImage(
+        string indexed previous,
+        string indexed current
     );
 
     error TokenIdNotFound(uint256 tokenId);
@@ -47,7 +90,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         _merchantName = merchantName_;
         _merchantId = merchantId_;
 
-        _setDefaultRoyalty(msg.sender, 500);
+        _setDefaultRoyalty(msg.sender, 250);
     }
 
     function supportsInterface(bytes4 interfaceId)
@@ -96,17 +139,17 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
 
         // Transfer or burn
         if (from != address(0)) {
-            require(addressBlacklist[from] == address(0), "LA: NFT Holder is blacklisted");
+            require(!addressBlacklist[from], "LA: NFT Holder is blacklisted");
         }
 
         // Mint or transfer
         if (to != address(0)) {
-            require(addressBlacklist[to] == address(0), "LA: Recipient is blacklisted");
+            require(!addressBlacklist[to], "LA: Recipient is blacklisted");
         }
 
         // A transfer
         if (from != address(0) && to != address(0)) {
-            require(nftBlacklist[tokenId] == 0, "LA: NFT is blacklisted");
+            require(!nftBlacklist[tokenId], "LA: NFT is blacklisted");
             
             _requireUnlock(tokenId);
 
@@ -118,25 +161,22 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // Lock-up period ===================
-    mapping(uint256 => uint256) private _lockups; // tokenId => locked up until timestamp
-    uint256 private _lockupPeriod; // duration of lockup period in seconds
 
-    function lockupLeftOf(uint256 tokenId) public view returns (uint256) {
+    function lockupLeftOf(uint256 tokenId) external view returns (uint256) {
         uint256 lockup = _lockups[tokenId];
-        if (lockup == 0) {
-            return 0;
-        }
-        if (block.timestamp >= lockup) {
+        if (lockup == 0 || block.timestamp >= lockup) {
             return 0;
         }
         return lockup - block.timestamp;
     }
 
-    function lockupPeriod() public view returns (uint256) {
+    function lockupPeriod() external view returns (uint256) {
         return _lockupPeriod;
     }
 
     function setLockupPeriod(uint256 period) external onlyOwner {
+        require(period <= MAX_LOCKUP_PERIOD, "LA: period is too long");
+        emit LockupPeriod(_lockupPeriod, period);
         _lockupPeriod = period;
     }
 
@@ -159,29 +199,33 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // NFT blacklist ===================
-    function addNFTToBlacklist(uint256 _nft) external onlyOwner {
-        nftBlacklist[_nft] = _nft;
+    function addNFTToBlacklist(uint256 _nft) external onlyOwner tokenExists(_nft) {
+        nftBlacklist[_nft] = true;
+        emit NftBlacklist(_nft, true);
     }
 
     function removeNFTFromBlacklist(uint256 _nft) external onlyOwner {
         delete nftBlacklist[_nft];
+        emit NftBlacklist(_nft, false);
     }
 
-    function isNFTBlacklisted(uint256 _nft) public view returns (bool) {
-        return nftBlacklist[_nft] != 0;
+    function isNFTBlacklisted(uint256 _nft) external view returns (bool) {
+        return nftBlacklist[_nft];
     }
 
     // Users blacklist ===================
     function addAddressToBlacklist(address _address) external onlyOwner {
-        addressBlacklist[_address] = _address;
+        addressBlacklist[_address] = true;
+        emit AddressBlacklist(_address, true);
     }
 
     function removeAddressFromBlacklist(address _address) external onlyOwner {
         delete addressBlacklist[_address];
+        emit AddressBlacklist(_address, false);
     }
 
-    function isAddressBlacklisted(address _address) public view returns (bool) {
-        return addressBlacklist[_address] != address(0);
+    function isAddressBlacklisted(address _address) external view returns (bool) {
+        return addressBlacklist[_address];
     }
 
     function expirationDateOf(uint256 tokenId)
@@ -222,11 +266,11 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         emit MetadataUpdate(tokenId);
     }
 
-    function merchantName() public view returns (string memory) {
+    function merchantName() external view returns (string memory) {
         return _merchantName;
     }
 
-    function merchantId() public view returns (uint256) {
+    function merchantId() external view returns (uint256) {
         return _merchantId;
     }
 
@@ -244,10 +288,6 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // NFT metadata ===================
-    string private _nftName = "NFT Name";
-    string private _nftDescription = "NFT Description";
-    string private _nftImage = "https://";
-
     function updateAllTokensMetadata() private {
         uint256 total = totalSupply();
 
@@ -306,11 +346,8 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
     }
 
     // Contract metadata ===================
-    string private _contractName = "Contract Name";
-    string private _contractDescription = "Contract Description";
-    string private _contractImage = "https://";
-
     function setContractName(string calldata name) external onlyOwner {
+        emit ContractName(_contractName, name);
         _contractName = name;
     }
 
@@ -318,14 +355,16 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC2981, Ownable, IERC4906 {
         external
         onlyOwner
     {
+        emit ContractDescription(_contractDescription, description);
         _contractDescription = description;
     }
 
     function setContractImage(string calldata image) external onlyOwner {
+        emit ContractImage(_contractImage, image);
         _contractImage = image;
     }
 
-    function contractURI() public view returns (string memory) {
+    function contractURI() external view returns (string memory) {
         (address receiver, uint256 fee) = royaltyInfo(0, _feeDenominator());
         string memory receiverString = Strings.toHexString(receiver);
         return

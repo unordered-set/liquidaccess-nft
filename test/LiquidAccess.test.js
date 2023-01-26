@@ -189,6 +189,13 @@ describe("Contract: LiquidAccess", () => {
             expect(await liquidAccess.lockupPeriod()).to.equal(100);
         });
 
+        it("should revert if lockup is greater than 30 days", async () => {
+            await expectRevert(
+                liquidAccess.setLockupPeriod(31 * 24 * 60 * 60),
+                "LA: period is too long"
+            );
+        });
+
         it("should revert if not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).setLockupPeriod(100),
@@ -242,10 +249,10 @@ describe("Contract: LiquidAccess", () => {
             
 
     describe("Royalty", async () => {
-        it("should return 5% royalty by default", async () => {
+        it("should return 2.5% royalty by default", async () => {
             const [recipient, fee] = await liquidAccess.royaltyInfo(1, 1000);
             expect(recipient).to.equal(owner.address);
-            expect(fee).to.equal(50);
+            expect(fee).to.equal(25);
         });
 
         it("should be able to change royalty recipient", async () => {
@@ -511,9 +518,9 @@ describe("Contract: LiquidAccess", () => {
             expect(metadata.description).to.equal(description);
         });
 
-        it("should use nft image as contract image", async () => {
+        it("should be able to change contract meta image", async () => {
             const image = "https://la-sc-test.io/logo.png";
-            await liquidAccess.setNFTImage(image);
+            await liquidAccess.setContractImage(image);
 
             const metadata = await getContractMetadata();
             expect(metadata.image).to.equal(image);
