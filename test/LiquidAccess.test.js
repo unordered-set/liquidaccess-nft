@@ -23,7 +23,7 @@ describe("Contract: LiquidAccess", () => {
     beforeEach(async () => {
         const LiquidAccess = await ethers.getContractFactory("LiquidAccess");
         liquidAccess = await LiquidAccess.deploy("LiquidAccess", "LQD", "Merchant", 42);
-        mint = (uri = 'ipfs://S9332fa/some') => liquidAccess.safeMint(owner.address, uri);
+        mint = (uri = 'ipfs://S9332fa/some') => liquidAccess.connect(minter).safeMint(owner.address, uri);
         batchMint = (recipients = [owner, wallet1, wallet2, owner, wallet3].map(s => s.address),
                      uris = [1, 2, 3, 4, 5].map(i => `ipfs://S9332fa/${i}`)) => 
             liquidAccess.connect(minter).batchMint(recipients, uris);
@@ -74,11 +74,11 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).safeMint(owner.address, ''),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`
             );
             await expectRevert(
                 liquidAccess.connect(wallet1).safeMint(wallet1.address, ''),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`
             );
         });
 
@@ -86,7 +86,7 @@ describe("Contract: LiquidAccess", () => {
             const EmptyContract = await ethers.getContractFactory("EmptyContract");
             const emptyContract = await EmptyContract.deploy();
             await expectRevert(
-                liquidAccess.safeMint(emptyContract.address, ''),
+                liquidAccess.connect(minter).safeMint(emptyContract.address, ''),
                 "ERC721: transfer to non ERC721Receiver implementer"
             );
         })
@@ -122,6 +122,8 @@ describe("Contract: LiquidAccess", () => {
 
             const tx2 = await batchMint();
             expect(await extractIdsFromReciept(tx2.wait())).to.be.deep.eq([6,7,8,9,10]);
+
+            expect(await liquidAccess.totalSupply()).to.be.eq(10)
         })
 
         it("should not allow owner to mint", async () => {
@@ -145,6 +147,8 @@ describe("Contract: LiquidAccess", () => {
                 [wallet2.address]: 0,
                 [wallet3.address]: 1,
             })
+
+            expect(await liquidAccess.totalSupply()).to.be.eq(4);
         })
 
         it("no error when minting to non ERC721Receiver contracts (unfortunately)", async () => {
@@ -305,19 +309,19 @@ describe("Contract: LiquidAccess", () => {
 
     describe("Transfer", async () => {
         it("should emit TransferFrom event with transfer counter", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expect(liquidAccess.transferFrom(owner.address, wallet1.address, 1))
                 .to.emit(liquidAccess, "TransferFrom")
                 .withArgs(owner.address, wallet1.address, 1, 1);
 
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expect(liquidAccess.transferFrom(owner.address, wallet1.address, 2))
                 .to.emit(liquidAccess, "TransferFrom")
                 .withArgs(owner.address, wallet1.address, 2, 2);
         });
 
         it("should revert if not token owner", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expectRevert(
                 liquidAccess.connect(wallet1).transferFrom(owner.address, wallet1.address, 1),
                 "ERC721: caller is not token owner nor approved"
@@ -327,19 +331,19 @@ describe("Contract: LiquidAccess", () => {
 
     describe("SafeTransfer", async () => {
         it("should emit TransferFrom event with transfer counter", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expect(liquidAccess["safeTransferFrom(address,address,uint256)"](owner.address, wallet1.address, 1))
                 .to.emit(liquidAccess, "TransferFrom")
                 .withArgs(owner.address, wallet1.address, 1, 1);
 
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expect(liquidAccess["safeTransferFrom(address,address,uint256)"](owner.address, wallet1.address, 2))
                 .to.emit(liquidAccess, "TransferFrom")
                 .withArgs(owner.address, wallet1.address, 2, 2);
         });
 
         it("should revert if not token owner", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await expectRevert(
                 liquidAccess.connect(wallet1)["safeTransferFrom(address,address,uint256)"](owner.address, wallet1.address, 1),
                 "ERC721: caller is not token owner nor approved"
@@ -349,7 +353,7 @@ describe("Contract: LiquidAccess", () => {
 
     describe("Approved transfer", async () => {
         it("should be able to approve an address for a transfer", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.setApprovalForAll(wallet1.address, true);
             expect(await liquidAccess.isApprovedForAll(owner.address, wallet1.address)).to.be.true;
         });
@@ -381,13 +385,13 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).setLockupPeriod(100),
-                "Ownable: caller is not the owner"
+                "AccessControl: account 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
             );
         });
 
         it("should lock transfers after each transfer", async () => {
             await liquidAccess.setLockupPeriod(60);
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
             await expectRevert(
                 liquidAccess.connect(wallet1).transferFrom(wallet1.address, wallet2.address, 1),
@@ -396,7 +400,7 @@ describe("Contract: LiquidAccess", () => {
         });
 
         it("should be able to retrieve lockup period of a token", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             expect(await liquidAccess.lockupLeftOf(1)).to.equal(0);
             await liquidAccess.setLockupPeriod(60);
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
@@ -414,7 +418,7 @@ describe("Contract: LiquidAccess", () => {
 
         it("should unlock transfers after lockup period", async () => {
             await liquidAccess.setLockupPeriod(60);
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
             await ethers.provider.send("evm_increaseTime", [60]);
             await ethers.provider.send("evm_mine");
@@ -423,14 +427,14 @@ describe("Contract: LiquidAccess", () => {
 
         it("should not revert if lockup period is 0", async () => {
             await liquidAccess.setLockupPeriod(0);
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
             await liquidAccess.connect(wallet1).transferFrom(wallet1.address, wallet2.address, 1);
         });
 
         it("should not be locked just after mint", async () => {
             await liquidAccess.setLockupPeriod(30);
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.transferFrom(owner.address, wallet2.address, 1);
         })
     });
@@ -466,22 +470,22 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if caller is not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).setRoyalty(wallet1.address, 0),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
 
             await expectRevert(
                 liquidAccess.connect(wallet1).removeRoyalty(),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
         });
     });
 
     describe("NFT blacklisting", async () => {
         it("should be able to blacklist NFT", async () => {
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
+            await mint();
+            await mint();
+            await mint();
 
             await liquidAccess.addNFTToBlacklist(1);
             await liquidAccess.addNFTToBlacklist(3);
@@ -493,10 +497,10 @@ describe("Contract: LiquidAccess", () => {
         });
 
         it("should be able to remove NFT from blacklist", async () => {
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
+            await mint();
+            await mint();
+            await mint();
             
             await liquidAccess.addNFTToBlacklist(1);
             await liquidAccess.addNFTToBlacklist(3);
@@ -513,16 +517,18 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if caller is not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).addNFTToBlacklist(1),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
+
             );
             await expectRevert(
                 liquidAccess.connect(wallet1).removeNFTFromBlacklist(1),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
+
             );
         });
 
         it("should not be able to transfer blacklisted NFT", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.addNFTToBlacklist(1);
 
             await expectRevert(
@@ -534,10 +540,10 @@ describe("Contract: LiquidAccess", () => {
 
     describe("Address blacklisting", async () => {
         it("should be able to blacklist address", async () => {
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
+            await mint();
+            await mint();
+            await mint();
 
             await liquidAccess.addAddressToBlacklist(wallet1.address);
             await liquidAccess.addAddressToBlacklist(wallet2.address);
@@ -548,10 +554,10 @@ describe("Contract: LiquidAccess", () => {
         });
 
         it("should be able to remove address from blacklist", async () => {
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
+            await mint();
+            await mint();
+            await mint();
 
             await liquidAccess.addAddressToBlacklist(wallet1.address);
             await liquidAccess.addAddressToBlacklist(wallet2.address);
@@ -567,16 +573,16 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if caller is not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).addAddressToBlacklist(wallet1.address),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
             await expectRevert(
                 liquidAccess.connect(wallet1).removeAddressFromBlacklist(wallet1.address),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
         });
 
         it("should not be able to transfer NFT to blacklisted address", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.addAddressToBlacklist(wallet1.address);
 
             await expectRevert(
@@ -586,7 +592,7 @@ describe("Contract: LiquidAccess", () => {
         });
 
         it("should not be able to transfer NFT from blacklisted address", async () => {
-            await liquidAccess.safeMint(owner.address, '');
+            await mint();
             await liquidAccess.addAddressToBlacklist(owner.address);
 
             await expectRevert(
@@ -598,10 +604,9 @@ describe("Contract: LiquidAccess", () => {
 
     describe("User tokens", async () => {
         it("should be able to retrieve user tokens", async () => {
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
-            await liquidAccess.safeMint(owner.address, '');
+            for (let i = 0; i < 4; ++i) {
+                await mint();
+            }
 
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
             await liquidAccess.transferFrom(owner.address, wallet1.address, 3);
@@ -687,12 +692,12 @@ describe("Contract: LiquidAccess", () => {
         it("should revert if caller is not owner", async () => {
             await expectRevert(
                 liquidAccess.connect(wallet1).setContractName(""),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
 
             await expectRevert(
                 liquidAccess.connect(wallet1).setContractDescription(""),
-                "Ownable: caller is not the owner"
+                `AccessControl: account ${wallet1.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`
             );
         });
     });

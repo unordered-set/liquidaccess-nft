@@ -13,10 +13,11 @@ import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "./interfaces/IERC4906.sol";
 
-contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ownable, IERC4906, AccessControl, EIP712 {
+contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IERC4906, AccessControl, EIP712 {
     using Strings for uint256;
 
     /// @notice MAX_LOCKUP_PERIOD is hardcoded in the contract and can not be changed.
@@ -132,7 +133,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable, ERC2981, IERC165, AccessControl)
+        override(ERC721, ERC721Enumerable, ERC2981, ERC165, AccessControl)
         returns (bool)
     {
         return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
@@ -278,7 +279,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     /// @param _royaltyFee Nominator of royalty amount, assuming the default denominator of 10000.
     function setRoyalty(address _recipient, uint96 _royaltyFee)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _setDefaultRoyalty(_recipient, _royaltyFee);
     }
@@ -286,7 +287,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     /// @notice Effectively erases all information about royalties, so selling this NFT becomes free.
     function removeRoyalty()
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _deleteDefaultRoyalty();
     }
@@ -294,7 +295,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     /// @notice Generates a new NFT and places it to `to` account
     function safeMint(address to, string calldata uri)
         external
-        onlyOwner
+        onlyRole(MINTER_ROLE)
         returns(uint256)
     {
         uint256 tokenId = _nextTokenId;
@@ -349,7 +350,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     /// @notice Set a new lockup petiod. Existing lockups are not affected.
     function setLockupPeriod(uint256 period)
         public
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         require(period <= MAX_LOCKUP_PERIOD, "LA: period is too long");
         emit LockupPeriod(_lockupPeriod, period);
@@ -358,7 +359,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function addNFTToBlacklist(uint256 _nft)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
         tokenExists(_nft)
     {
         nftBlacklist[_nft] = true;
@@ -367,7 +368,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function removeNFTFromBlacklist(uint256 _nft)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
         tokenExists(_nft)
     {
         delete nftBlacklist[_nft];
@@ -376,7 +377,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function addAddressToBlacklist(address _address)
         public
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         addressBlacklist[_address] = true;
         emit AddressBlacklist(_address, true);
@@ -384,7 +385,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function removeAddressFromBlacklist(address _address)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         delete addressBlacklist[_address];
         emit AddressBlacklist(_address, false);
@@ -393,7 +394,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
     /// @dev Emits update showing that metadata for all tokens was updated.
     function updateAllTokensMetadata()
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (_nextTokenId > 1) {
             emit BatchMetadataUpdate(1, _nextTokenId - 1);
@@ -402,7 +403,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function setContractName(string calldata contractName_)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         emit ContractName(_contractName, contractName_);
         _contractName = contractName_;
@@ -410,7 +411,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function setContractDescription(string calldata description)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         emit ContractDescription(_contractDescription, description);
         _contractDescription = description;
@@ -418,7 +419,7 @@ contract LiquidAccess is ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, Ow
 
     function setContractImage(string calldata image)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         emit ContractImage(_contractImage, image);
         _contractImage = image;

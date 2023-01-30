@@ -2,11 +2,8 @@
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/interfaces/IERC165.sol";
-import "@openzeppelin/contracts/interfaces/IERC721.sol";
-
 /// @title EIP-721 Metadata Update Extension
-interface IERC4906 is IERC165, IERC721 {
+interface IERC4906 {
     /// @dev This event emits when the metadata of a token is changed.
     /// So that the third-party platforms such as NFT market could
     /// timely update the images and related attributes of the NFT.
