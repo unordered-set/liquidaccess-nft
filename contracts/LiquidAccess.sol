@@ -44,7 +44,7 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    uint256 private _nextTokenId;
+    uint256 public _nextTokenId;
 
     /// @dev For each user and each NFT we are storing what was the latest
     //       nonce. Then we are allowing to call permit() only for the most
