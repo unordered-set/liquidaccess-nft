@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "./interfaces/IERC4906.sol";
 
-contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IERC4906, AccessControl, EIP712 {
+contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStorage, ERC2981, IERC4906, AccessControl, EIP712 {
     using Strings for uint256;
 
     /// @notice MAX_LOCKUP_PERIOD is hardcoded in the contract and can not be changed.
@@ -94,7 +95,18 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
         string indexed current
     );
 
+    error AfterDeadline(uint256 providedDeadline, uint256 currentTime);
+    error ApproveToOwner();
+    error HolderIsBlacklisted(address holder);
+    error NFTisBlacklisted(uint256 tokenId);
+    error NotOwner(address who, address expectedOwner, uint256 tokenId);
+    error PeriodTooLong(uint256 providedPeriod, uint256 allowedPeriod);
+    error RecipientIsBlacklisted(address recipient);
     error TokenIdNotFound(uint256 tokenId);
+    error TransferIsLocked(uint256 lockedUntil, uint256 currentTime);
+    error WrongInputs();
+    error WrongNonce(uint256 providedNonce, uint256 currentNonce);
+    error WrongSigner(address expected, address actual);
 
     // ============================================
     // Modifiers section
@@ -260,11 +272,11 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
             nonce)));
         address signer = ECDSA.recover(digest, v, r, s);
         address tokenOwner = ERC721.ownerOf(tokenId);
-        require(owner == signer, "LA: permit() wrong signer");
-        require(tokenOwner == signer, "LA: permit() not an owner");
-        require(block.timestamp <= deadline, "LA: permit() after deadline");
-        require(nonce == _permitNonces[owner][tokenId], "LA: wrong nonce");
-        require(spender != owner, "ERC721: approval to current owner");
+        if (owner != signer) revert WrongSigner(owner, signer);
+        if (tokenOwner != signer) revert NotOwner(signer, tokenOwner, tokenId);
+        if (block.timestamp > deadline) revert AfterDeadline(deadline, block.timestamp);
+        if (nonce != _permitNonces[owner][tokenId]) revert WrongNonce(nonce, _permitNonces[owner][tokenId]);
+        if (spender == owner) revert ApproveToOwner();
 
         _approve(spender, tokenId);
         ++_permitNonces[owner][tokenId];
@@ -318,7 +330,7 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
         external
         onlyRole(MINTER_ROLE)
     {
-        require(recipients.length == uris.length);
+        if (recipients.length != uris.length) revert WrongInputs();
 
         uint256 tokenId = _nextTokenId;
         for (uint16 i = 0; i < recipients.length; ) {
@@ -352,7 +364,7 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
         public
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(period <= MAX_LOCKUP_PERIOD, "LA: period is too long");
+        if (period > MAX_LOCKUP_PERIOD) revert PeriodTooLong(period, MAX_LOCKUP_PERIOD);
         emit LockupPeriod(_lockupPeriod, period);
         _lockupPeriod = period;
     }
@@ -442,23 +454,22 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
 
         // Transfer or burn
         if (from != address(0)) {
-            require(!addressBlacklist[from], "LA: NFT Holder is blacklisted");
+            if (addressBlacklist[from]) revert HolderIsBlacklisted(from);
         }
 
         // Mint or transfer
         if (to != address(0)) {
-            require(!addressBlacklist[to], "LA: Recipient is blacklisted");
+            if (addressBlacklist[to]) revert RecipientIsBlacklisted(to);
         }
 
         // A transfer
         if (from != address(0) && to != address(0)) {
-            require(!nftBlacklist[tokenId], "LA: NFT is blacklisted");
+            if (nftBlacklist[tokenId]) revert NFTisBlacklisted(tokenId);
             
             uint256 lockup = _lockups[tokenId];
-            require(
-                lockup == 0 || block.timestamp >= lockup,
-                "LA: Transfer is locked"
-            );
+            if (lockup != 0 && block.timestamp < lockup) {
+                revert TransferIsLocked(lockup, block.timestamp);
+            }
 
             _lockup(tokenId);
 
@@ -479,7 +490,6 @@ contract LiquidAccess is ERC165, ERC721Enumerable, ERC721URIStorage, ERC2981, IE
         internal
         override(ERC721, ERC721URIStorage)
     {
-        ERC721URIStorage._burn(tokenId);
-        ERC721._burn(tokenId);
+        super._burn(tokenId);
     }
 }

@@ -2,6 +2,7 @@ const { ethers } = require("hardhat");
 const { expect, assert } = require("chai");
 const { AddressZero } = ethers.constants;
 const { time, BN } = require("@openzeppelin/test-helpers");
+const util = require('util')
 
 const expectRevert = async (statement, reason) => {
     await expect(statement).to.be.revertedWith(reason);
@@ -15,13 +16,14 @@ describe("Contract: LiquidAccess", () => {
     let owner, wallet1, wallet2, wallet3, minter;
     let liquidAccess;
     let mint, batchMint;
+    let LiquidAccess;
 
     before(async () => {
         [owner, wallet1, wallet2, wallet3, minter] = await ethers.getSigners();
     });
 
     beforeEach(async () => {
-        const LiquidAccess = await ethers.getContractFactory("LiquidAccess");
+        LiquidAccess = await ethers.getContractFactory("LiquidAccess");
         liquidAccess = await LiquidAccess.deploy("LiquidAccess", "LQD", "Merchant", 42);
         mint = (uri = 'ipfs://S9332fa/some') => liquidAccess.connect(minter).safeMint(owner.address, uri);
         batchMint = (recipients = [owner, wallet1, wallet2, owner, wallet3].map(s => s.address),
@@ -91,6 +93,39 @@ describe("Contract: LiquidAccess", () => {
             );
         })
     });
+
+    describe("Token Burn", async () => {
+        it("should be able to burn existing token", async () => {
+            const minttx = await mint();
+            const minteffects = await minttx.wait()
+            expect(await liquidAccess.balanceOf(owner.address)).to.equal(1);
+            const tx = await liquidAccess.burn(1);
+            await tx.wait()
+            expect(await liquidAccess.balanceOf(owner.address)).to.equal(0);
+            await expectRevert(
+                liquidAccess.ownerOf(1),
+                "ERC721: invalid token ID"
+            )
+        });
+
+        it("fails burning non existing token", async () => {
+            await expectRevert(
+                liquidAccess.burn(100),
+                "ERC721: invalid token ID"
+            )
+        });
+
+        it("Allows for the side contract to burn a token", async () => {
+            const MarketPlace = await ethers.getContractFactory("MarketPlace")
+            const marketPlace = await MarketPlace.deploy()
+            const burntx = await mint()
+            expect (await liquidAccess.totalSupply()).to.be.eq(1)
+
+            const approveTx = await liquidAccess.approve(marketPlace.address, 1)
+            await marketPlace.unmint(liquidAccess.address, 1)
+            expect (await liquidAccess.totalSupply()).to.be.eq(0)
+        })
+    })
 
     describe("Batch minting", async () => {
         const checkAmounts = async (amounts) => {
@@ -227,7 +262,7 @@ describe("Contract: LiquidAccess", () => {
                 nonce: 0,
             };
             const op = signAndPrepareTx(permitFrom, permitData);
-            await expectRevert(op, "LA: permit() not an owner");
+            await expectRevertCustom(LiquidAccess, op, "NotOwner");
         })
 
         it("should check the nonce, not allowing to re-use same signature", async () => {
@@ -254,11 +289,12 @@ describe("Contract: LiquidAccess", () => {
                 v, r, s);
 
             // Second attempt not OK.
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.connect(wallet3).permit(
                     permitData.owner, permitData.spender, permitData.tokenId, permitData.deadline, permitData.nonce,
                     v, r, s),
-                "LA: wrong nonce");
+                "WrongNonce");
 
             // But after updating nonce should be OK.
             permitData.nonce = 1;
@@ -287,7 +323,7 @@ describe("Contract: LiquidAccess", () => {
                 nonce: 0,
             };
             const op = signAndPrepareTx(permitFrom, permitData);
-            await expectRevert(op, "LA: permit() after deadline");
+            await expectRevertCustom(LiquidAccess, op, "AfterDeadline");
         })
 
         it("when signature is OK, permission works", async () => {
@@ -376,9 +412,10 @@ describe("Contract: LiquidAccess", () => {
         });
 
         it("should revert if lockup is greater than 30 days", async () => {
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.setLockupPeriod(31 * 24 * 60 * 60),
-                "LA: period is too long"
+                "PeriodTooLong"
             );
         });
 
@@ -393,9 +430,10 @@ describe("Contract: LiquidAccess", () => {
             await liquidAccess.setLockupPeriod(60);
             await mint();
             await liquidAccess.transferFrom(owner.address, wallet1.address, 1);
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.connect(wallet1).transferFrom(wallet1.address, wallet2.address, 1),
-                "LA: Transfer is locked"
+                "TransferIsLocked"
             );
         });
 
@@ -531,9 +569,10 @@ describe("Contract: LiquidAccess", () => {
             await mint();
             await liquidAccess.addNFTToBlacklist(1);
 
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.transferFrom(owner.address, wallet1.address, 1),
-                "LA: NFT is blacklisted"
+                "NFTisBlacklisted"
             );
         });
     });
@@ -585,9 +624,10 @@ describe("Contract: LiquidAccess", () => {
             await mint();
             await liquidAccess.addAddressToBlacklist(wallet1.address);
 
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.transferFrom(owner.address, wallet1.address, 1),
-                "LA: Recipient is blacklisted"
+                "RecipientIsBlacklisted"
             );
         });
 
@@ -595,9 +635,10 @@ describe("Contract: LiquidAccess", () => {
             await mint();
             await liquidAccess.addAddressToBlacklist(owner.address);
 
-            await expectRevert(
+            await expectRevertCustom(
+                LiquidAccess,
                 liquidAccess.transferFrom(owner.address, wallet1.address, 1),
-                "LA: NFT Holder is blacklisted"
+                "HolderIsBlacklisted"
             );
         });
     });
