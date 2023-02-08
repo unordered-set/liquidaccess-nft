@@ -45,11 +45,11 @@ describe("Contract: LiquidAccess", () => {
 
     describe("Merchant info", () => {
         it("should return merchant name", async () => {
-            expect(await liquidAccess.merchantName()).to.equal("Merchant");
+            expect(await liquidAccess._merchantName()).to.equal("Merchant");
         });
 
         it("should return merchant id", async () => {
-            expect(await liquidAccess.merchantId()).to.equal(42);
+            expect(await liquidAccess._merchantId()).to.equal(42);
         });
     });
 

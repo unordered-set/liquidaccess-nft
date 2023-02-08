@@ -24,26 +24,26 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
     /// @notice MAX_LOCKUP_PERIOD is hardcoded in the contract and can not be changed.
     ///         But owner can set _lockupPeriod, the actual value to something between
     ///         0 and MAX_LOCKUP_PERIOD.
-    uint256 public constant MAX_LOCKUP_PERIOD = 30 days;
+    uint256 public immutable MAX_LOCKUP_PERIOD = 30 days;
     uint256 private _lockupPeriod;  // duration of lockup period in seconds
     mapping(uint256 => uint256) private _lockups;  // locked up until timestamp
 
 
-    string private _merchantName; // Merchant name
-    uint256 private _merchantId; // Merchant id
+    string public _merchantName; // Merchant name
+    uint256 public immutable _merchantId; // Merchant id
     string private _contractName;
     string private _contractDescription;
     string private _contractImage;
 
 
-    uint256 private _tranferFromCounter; // TransferFrom counter
+    uint256 public _tranferFromCounter; // TransferFrom counter
 
 
     mapping(address => bool) private addressBlacklist; // Black list (user)
     mapping(uint256 => bool) private nftBlacklist; // Black list (nft)
 
 
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public immutable MINTER_ROLE = keccak256("MINTER_ROLE");
 
     uint256 public _nextTokenId;
 
@@ -95,18 +95,60 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         string indexed current
     );
 
-    error AfterDeadline(uint256 providedDeadline, uint256 currentTime);
+    // ============================================
+    // Errors section
+    // ============================================
+
+    error AfterDeadline(
+        uint256 providedDeadline,
+        uint256 currentTime
+    );
+
     error ApproveToOwner();
-    error HolderIsBlacklisted(address holder);
-    error NFTisBlacklisted(uint256 tokenId);
-    error NotOwner(address who, address expectedOwner, uint256 tokenId);
-    error PeriodTooLong(uint256 providedPeriod, uint256 allowedPeriod);
-    error RecipientIsBlacklisted(address recipient);
-    error TokenIdNotFound(uint256 tokenId);
-    error TransferIsLocked(uint256 lockedUntil, uint256 currentTime);
+
+    error HolderIsBlacklisted(
+        address holder
+    );
+
+    error NFTisBlacklisted(
+        uint256 tokenId
+    );
+
+    error NotOwner(
+        address who,
+        address expectedOwner,
+        uint256 tokenId
+    );
+
+    error PeriodTooLong(
+        uint256 providedPeriod,
+        uint256 allowedPeriod
+    );
+
+    error RecipientIsBlacklisted(
+        address recipient
+    );
+
+    error TokenIdNotFound(
+        uint256 tokenId
+    );
+
+    error TransferIsLocked(
+        uint256 lockedUntil,
+        uint256 currentTime
+    );
+
     error WrongInputs();
-    error WrongNonce(uint256 providedNonce, uint256 currentNonce);
-    error WrongSigner(address expected, address actual);
+
+    error WrongNonce(
+        uint256 providedNonce,
+        uint256 currentNonce
+    );
+
+    error WrongSigner(
+        address expected,
+        address actual
+    );
 
     // ============================================
     // Modifiers section
@@ -127,7 +169,8 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         string memory merchantName_,
         uint256 merchantId_
     ) ERC721(name_, symbol_)
-      EIP712(name_, "1.0") {
+      EIP712(name_, "1.0")
+    {
         _merchantName = merchantName_;
         _merchantId = merchantId_;
 
@@ -199,22 +242,6 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         returns (bool)
     {
         return addressBlacklist[_address];
-    }
-
-    function merchantName()
-        external
-        view
-        returns (string memory)
-    {
-        return _merchantName;
-    }
-
-    function merchantId()
-        external
-        view
-        returns (uint256)
-    {
-        return _merchantId;
     }
 
     function userTokens(address user)
