@@ -408,7 +408,7 @@ describe("Contract: LiquidAccess", () => {
     describe("Transfer Lockup", async () => {
         it("should be able to set lockup period", async () => {
             await liquidAccess.setLockupPeriod(100);
-            expect(await liquidAccess.lockupPeriod()).to.equal(100);
+            expect(await liquidAccess._lockupPeriod()).to.equal(100);
         });
 
         it("should revert if lockup is greater than 30 days", async () => {
@@ -528,10 +528,10 @@ describe("Contract: LiquidAccess", () => {
             await liquidAccess.addNFTToBlacklist(1);
             await liquidAccess.addNFTToBlacklist(3);
 
-            expect(await liquidAccess.isNFTBlacklisted(1)).to.equal(true);
-            expect(await liquidAccess.isNFTBlacklisted(2)).to.equal(false);
-            expect(await liquidAccess.isNFTBlacklisted(3)).to.equal(true);
-            expect(await liquidAccess.isNFTBlacklisted(4)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(1)).to.equal(true);
+            expect(await liquidAccess.frozenNFTList(2)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(3)).to.equal(true);
+            expect(await liquidAccess.frozenNFTList(4)).to.equal(false);
         });
 
         it("should be able to remove NFT from blacklist", async () => {
@@ -546,10 +546,10 @@ describe("Contract: LiquidAccess", () => {
             await liquidAccess.removeNFTFromBlacklist(1);
             await liquidAccess.removeNFTFromBlacklist(3);
 
-            expect(await liquidAccess.isNFTBlacklisted(1)).to.equal(false);
-            expect(await liquidAccess.isNFTBlacklisted(2)).to.equal(false);
-            expect(await liquidAccess.isNFTBlacklisted(3)).to.equal(false);
-            expect(await liquidAccess.isNFTBlacklisted(4)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(1)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(2)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(3)).to.equal(false);
+            expect(await liquidAccess.frozenNFTList(4)).to.equal(false);
         });
 
         it("should revert if caller is not owner", async () => {
@@ -587,9 +587,9 @@ describe("Contract: LiquidAccess", () => {
             await liquidAccess.addAddressToBlacklist(wallet1.address);
             await liquidAccess.addAddressToBlacklist(wallet2.address);
 
-            expect(await liquidAccess.isAddressBlacklisted(wallet1.address)).to.equal(true);
-            expect(await liquidAccess.isAddressBlacklisted(wallet2.address)).to.equal(true);
-            expect(await liquidAccess.isAddressBlacklisted(wallet3.address)).to.equal(false);
+            expect(await liquidAccess.deniedUsersList(wallet1.address)).to.equal(true);
+            expect(await liquidAccess.deniedUsersList(wallet2.address)).to.equal(true);
+            expect(await liquidAccess.deniedUsersList(wallet3.address)).to.equal(false);
         });
 
         it("should be able to remove address from blacklist", async () => {
@@ -604,9 +604,9 @@ describe("Contract: LiquidAccess", () => {
             await liquidAccess.removeAddressFromBlacklist(wallet1.address);
             await liquidAccess.removeAddressFromBlacklist(wallet2.address);
 
-            expect(await liquidAccess.isAddressBlacklisted(wallet1.address)).to.equal(false);
-            expect(await liquidAccess.isAddressBlacklisted(wallet2.address)).to.equal(false);
-            expect(await liquidAccess.isAddressBlacklisted(wallet3.address)).to.equal(false);
+            expect(await liquidAccess.deniedUsersList(wallet1.address)).to.equal(false);
+            expect(await liquidAccess.deniedUsersList(wallet2.address)).to.equal(false);
+            expect(await liquidAccess.deniedUsersList(wallet3.address)).to.equal(false);
         });
 
         it("should revert if caller is not owner", async () => {
