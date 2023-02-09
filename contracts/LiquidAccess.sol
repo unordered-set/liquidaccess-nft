@@ -39,7 +39,7 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
     uint256 public _tranferFromCounter; // TransferFrom counter
 
 
-    mapping(address => bool) public deniedUsersList;
+    mapping(address => bool) public bannedUsersList;
     mapping(uint256 => bool) public frozenNFTList;
 
 
@@ -70,12 +70,12 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         uint256 indexed current
     );
 
-    event NftBlacklist(
+    event NftFrozen(
         uint256 indexed tokenId,
         bool indexed status
     );
 
-    event AddressBlacklist(
+    event AddressBanned(
         address indexed user,
         bool indexed status
     );
@@ -106,11 +106,11 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
 
     error ApproveToOwner();
 
-    error HolderIsBlacklisted(
+    error HolderIsBanned(
         address holder
     );
 
-    error NFTisBlacklisted(
+    error NFTisFrozen(
         uint256 tokenId
     );
 
@@ -125,7 +125,7 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         uint256 allowedPeriod
     );
 
-    error RecipientIsBlacklisted(
+    error RecipientIsBanned(
         address recipient
     );
 
@@ -335,7 +335,7 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
 
         uint256 tokenId = _nextTokenId;
         for (uint16 i = 0; i < recipients.length; ) {
-            if (!deniedUsersList[recipients[i]]) {
+            if (!bannedUsersList[recipients[i]]) {
                 _mint(recipients[i], tokenId);
                 _setTokenURI(tokenId, uris[i]);
             }
@@ -370,38 +370,38 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
         _lockupPeriod = period;
     }
 
-    function addNFTToBlacklist(uint256 _nft)
+    function freezeNft(uint256 _nft)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
         tokenExists(_nft)
     {
         frozenNFTList[_nft] = true;
-        emit NftBlacklist(_nft, true);
+        emit NftFrozen(_nft, true);
     }
 
-    function removeNFTFromBlacklist(uint256 _nft)
+    function unfreezeNft(uint256 _nft)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
         tokenExists(_nft)
     {
         delete frozenNFTList[_nft];
-        emit NftBlacklist(_nft, false);
+        emit NftFrozen(_nft, false);
     }
 
-    function addAddressToBlacklist(address _address)
+    function banUser(address _address)
         public
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        deniedUsersList[_address] = true;
-        emit AddressBlacklist(_address, true);
+        bannedUsersList[_address] = true;
+        emit AddressBanned(_address, true);
     }
 
-    function removeAddressFromBlacklist(address _address)
+    function unbanUser(address _address)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        delete deniedUsersList[_address];
-        emit AddressBlacklist(_address, false);
+        delete bannedUsersList[_address];
+        emit AddressBanned(_address, false);
     }
 
     /// @dev Emits update showing that metadata for all tokens was updated.
@@ -455,17 +455,17 @@ contract LiquidAccess is ERC165, ERC721Burnable, ERC721Enumerable, ERC721URIStor
 
         // Transfer or burn
         if (from != address(0)) {
-            if (deniedUsersList[from]) revert HolderIsBlacklisted(from);
+            if (bannedUsersList[from]) revert HolderIsBanned(from);
         }
 
         // Mint or transfer
         if (to != address(0)) {
-            if (deniedUsersList[to]) revert RecipientIsBlacklisted(to);
+            if (bannedUsersList[to]) revert RecipientIsBanned(to);
         }
 
         // A transfer
         if (from != address(0) && to != address(0)) {
-            if (frozenNFTList[tokenId]) revert NFTisBlacklisted(tokenId);
+            if (frozenNFTList[tokenId]) revert NFTisFrozen(tokenId);
             
             uint256 lockup = _lockups[tokenId];
             if (lockup != 0 && block.timestamp < lockup) {
